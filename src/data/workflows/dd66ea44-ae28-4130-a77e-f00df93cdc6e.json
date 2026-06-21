@@ -1,0 +1,14 @@
+{
+  "steps": [
+    {
+      "name": "Log",
+      "action": "log",
+      "input_schema": {}
+    },
+    {
+      "name": "Uppercase",
+      "action": "transform",
+      "input_schema": {}
+    }
+  ]
+}

@@ -1,45 +1,87 @@
-from pydantic import BaseModel
 from pydantic_settings import BaseSettings
 from typing import Optional
+from pathlib import Path
 import os
-from dotenv import load_dotenv
 
-load_dotenv()
+# -------------------------------------------------
+# BASE PATHS
+# -------------------------------------------------
+BASE_DIR = Path(__file__).resolve().parent.parent.parent
+ENV_FILE = BASE_DIR / ".env"
 
+
+# -------------------------------------------------
+# SETTINGS
+# -------------------------------------------------
 class Settings(BaseSettings):
-    # Application Settings
+    # -----------------------------
+    # APP
+    # -----------------------------
     APP_NAME: str = "PyAutomate AI"
     API_V1_PREFIX: str = "/api/v1"
-    DEBUG: bool = False
-    
-    # Security
-    SECRET_KEY: str = os.getenv("SECRET_KEY", "your-secret-key-here")
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
-    
-    # Database
-    POSTGRES_USER: str = os.getenv("POSTGRES_USER", "postgres")
-    POSTGRES_PASSWORD: str = os.getenv("POSTGRES_PASSWORD", "postgres")
-    POSTGRES_SERVER: str = os.getenv("POSTGRES_SERVER", "localhost")
-    POSTGRES_DB: str = os.getenv("POSTGRES_DB", "pyautomate")
+    DEBUG: bool = True
+
+    # -----------------------------
+    # SECURITY
+    # -----------------------------
+    SECRET_KEY: str = "dev-secret-key"
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
+
+    # -----------------------------
+    # DATABASE (SQLite default)
+    # -----------------------------
     DATABASE_URL: Optional[str] = None
-    
-    # MongoDB
-    MONGO_URL: str = os.getenv("MONGO_URL", "mongodb://localhost:27017")
-    MONGO_DB: str = os.getenv("MONGO_DB", "pyautomate")
-    
-    # Redis
-    REDIS_URL: str = os.getenv("REDIS_URL", "redis://localhost:6379")
-    
-    # AWS
-    AWS_ACCESS_KEY_ID: Optional[str] = os.getenv("AWS_ACCESS_KEY_ID")
-    AWS_SECRET_ACCESS_KEY: Optional[str] = os.getenv("AWS_SECRET_ACCESS_KEY")
-    AWS_REGION: str = os.getenv("AWS_REGION", "us-east-1")
-    
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-        self.DATABASE_URL = f"postgresql://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}@{self.POSTGRES_SERVER}/{self.POSTGRES_DB}"
 
+    # PostgreSQL (optional – prod)
+    POSTGRES_USER: Optional[str] = None
+    POSTGRES_PASSWORD: Optional[str] = None
+    POSTGRES_HOST: Optional[str] = None
+    POSTGRES_PORT: int = 5432
+    POSTGRES_DB: Optional[str] = None
+
+    # -----------------------------
+    # REDIS / CELERY
+    # -----------------------------
+    REDIS_URL: str = "redis://localhost:6379/0"
+    CELERY_BROKER_URL: Optional[str] = None
+    CELERY_RESULT_BACKEND: Optional[str] = None
+
+    # -----------------------------
+    # MONGO (optional)
+    # -----------------------------
+    MONGO_URL: Optional[str] = None
+    MONGO_DB: str = "pyautomate"
+
+    # -----------------------------
+    # INIT LOGIC
+    # -----------------------------
+    def model_post_init(self, __context):
+        """
+        Post-init logic for derived values
+        """
+
+        # SQLite for local/dev
+        if not self.DATABASE_URL:
+            sqlite_path = BASE_DIR / "pyautomate.db"
+            self.DATABASE_URL = f"sqlite:///{sqlite_path}"
+
+        # Celery defaults
+        if not self.CELERY_BROKER_URL:
+            self.CELERY_BROKER_URL = self.REDIS_URL
+
+        if not self.CELERY_RESULT_BACKEND:
+            self.CELERY_RESULT_BACKEND = self.REDIS_URL
+
+    # -----------------------------
+    # CONFIG
+    # -----------------------------
     class Config:
-        env_file = ".env"
+        env_file = ENV_FILE
+        env_file_encoding = "utf-8"
+        case_sensitive = True
 
+
+# -------------------------------------------------
+# SINGLETON
+# -------------------------------------------------
 settings = Settings()
